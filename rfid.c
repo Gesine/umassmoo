@@ -4,6 +4,9 @@
 #include "rfid.h"
 #include "mymoo.h"
 
+// Needed for call to asm code to be evaluated properly
+extern void sendToReader(volatile unsigned char *data, unsigned char numOfBits);
+
 unsigned short Q = 0;
 unsigned short slot_counter = 0;
 unsigned short shift = 0;

@@ -6,9 +6,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Step 1: pick an application
 // simple hardcoded query-ack
-#define SIMPLE_QUERY_ACK              0
+#define SIMPLE_QUERY_ACK              1
 // return sampled sensor data as epc. best for range.
-#define SENSOR_DATA_IN_ID             1
+#define SENSOR_DATA_IN_ID             0
 // support read commands. returns one word of counter data
 #define SIMPLE_READ_COMMAND           0
 // return sampled sensor data in a read command. returns three words of accel
