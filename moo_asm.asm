@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //                                                                            /
-// IAR C/C++ Compiler V5.10.6.50180/W32 for MSP430      25/Jul/2012  12:51:44 /
+// IAR C/C++ Compiler V5.10.6.50180/W32 for MSP430      25/Jul/2012  15:22:08 /
 // Copyright 1996-2010 IAR Systems AB.                                        /
 //                                                                            /
 //    __rt_version  =  3                                                      /
@@ -11,29 +11,29 @@
 //    __core        =  430X                                                   /
 //    __data_model  =  small                                                  /
 //    Source file   =  C:\Documents and Settings\Addison                      /
-//                     Mayberry\Desktop\moofirmwaredev_asmtest\build_asm.c    /
+//                     Mayberry\Desktop\moofirmwaredev\build_asm.c            /
 //    Command line  =  "C:\Documents and Settings\Addison                     /
-//                     Mayberry\Desktop\moofirmwaredev_asmtest\build_asm.c"   /
-//                     -lcN "C:\Documents and Settings\Addison                /
-//                     Mayberry\Desktop\moofirmwaredev_asmtest\Debug\List\"   /
-//                     -la "C:\Documents and Settings\Addison                 /
-//                     Mayberry\Desktop\moofirmwaredev_asmtest\Debug\List\"   /
-//                     -o "C:\Documents and Settings\Addison                  /
-//                     Mayberry\Desktop\moofirmwaredev_asmtest\Debug\Obj\"    /
-//                     --no_cse --no_unroll --no_inline --no_code_motion      /
-//                     --no_tbaa --debug -D__MSP430F2618__ -e --double=32     /
+//                     Mayberry\Desktop\moofirmwaredev\build_asm.c" -lcN      /
+//                     "C:\Documents and Settings\Addison                     /
+//                     Mayberry\Desktop\moofirmwaredev\Debug\List\" -la       /
+//                     "C:\Documents and Settings\Addison                     /
+//                     Mayberry\Desktop\moofirmwaredev\Debug\List\" -o        /
+//                     "C:\Documents and Settings\Addison                     /
+//                     Mayberry\Desktop\moofirmwaredev\Debug\Obj\" --no_cse   /
+//                     --no_unroll --no_inline --no_code_motion --no_tbaa     /
+//                     --debug -D__MSP430F2618__ -e --double=32               /
 //                     --dlib_config "C:\Program Files\IAR Systems\Embedded   /
 //                     Workbench 6.0\430\LIB\DLIB\dl430xsfn.h" --regvar_r4    /
 //                     --regvar_r5 --core=430X --data_model=small -Ol         /
 //                     --multiplier=16s                                       /
 //    List file     =  C:\Documents and Settings\Addison                      /
-//                     Mayberry\Desktop\moofirmwaredev_asmtest\Debug\List\bui /
-//                     ld_asm.s43                                             /
+//                     Mayberry\Desktop\moofirmwaredev\Debug\List\build_asm.s /
+//                     43                                                     /
 //                                                                            /
 //                                                                            /
 ///////////////////////////////////////////////////////////////////////////////
 
-        NAME build_asm
+        NAME moo_asm
 
         RTMODEL "__SystemLibrary", "DLib"
         RTMODEL "__core", "430X"
@@ -47,6 +47,7 @@
         RSEG CSTACK:DATA:SORT:NOROOT(0)
 
         PUBWEAK `??Port1_ISR??INTVEC 36`
+        PUBWEAK `??TimerA1_ISR??INTVEC 48`
         PUBWEAK BCSCTL1
         PUBWEAK BCSCTL2
         PUBWEAK DCOCTL
@@ -59,10 +60,15 @@
         ARGFRAME CSTACK, 0, STACK
         LOCFRAME CSTACK, 4, STACK
         PUBWEAK TACCR0
+        PUBWEAK TACCR1
         PUBWEAK TACCTL0
         PUBWEAK TACCTL1
         PUBWEAK TACTL
         PUBWEAK TAR
+        PUBLIC TimerA1_ISR
+        FUNCTION TimerA1_ISR,080233H
+        ARGFRAME CSTACK, 0, STACK
+        LOCFRAME CSTACK, 4, STACK
         PUBLIC junk
         FUNCTION junk,0201H
         ARGFRAME CSTACK, 0, STACK
@@ -187,7 +193,10 @@
         
 Port1_ISR           SYMBOL "Port1_ISR"
 `??Port1_ISR??INTVEC 36` SYMBOL "??INTVEC 36", Port1_ISR
+TimerA1_ISR         SYMBOL "TimerA1_ISR"
+`??TimerA1_ISR??INTVEC 48` SYMBOL "??INTVEC 48", TimerA1_ISR
 
+        EXTERN TRcal
         EXTERN delimiterNotFound
         EXTERN TRext
         EXTERN bits
@@ -254,6 +263,11 @@ TAR:
 TACCR0:
         DS8 2
 
+        ASEGN DATA16_AN:DATA:NOROOT,0174H
+// unsigned short volatile TACCR1
+TACCR1:
+        DS8 2
+
         RSEG CODE:CODE:REORDER:NOROOT(1)
 junk:
         CFI Block cfiBlock0 Using cfiCommon0
@@ -261,11 +275,13 @@ junk:
         MOV.B   &0x25, R14
         MOV.B   &0x24, R15
         MOV.W   &0x164, R13
+        MOV.W   &0x174, R12
         RETA
         CFI EndBlock cfiBlock0
         REQUIRE P1IE
         REQUIRE P1IES
         REQUIRE TACCTL1
+        REQUIRE TACCR1
 
         RSEG CODE:CODE:REORDER:NOROOT(1)
 sendToReader:
@@ -544,21 +560,88 @@ bit_Is_Zero_In_Port_Int:
         REQUIRE P1IFG
         REQUIRE TAR
 
+        RSEG ISR_CODE:CODE:REORDER:NOROOT(1)
+TimerA1_ISR:
+        CFI Block cfiBlock3 Using cfiCommon1
+        CFI Function TimerA1_ISR
+        MOV TACCR1, R7
+        MOV.W   #0x0, &0x170
+        BIC.W   #0x1, &0x164
+        CMP #0003h, R5
+        JGE bit_Is_Over_Three
+        CMP #0002h, R5
+        JEQ bit_Is_Two
+        CMP #0001h, R5
+        JEQ bit_Is_One
+bit_Is_Zero_In_Timer_Int:
+        CLR R6
+        INC R5
+        RETI
+bit_Is_One:
+        MOV R7, R9
+        RRA R7
+        MOV #0FFFFh, R8
+        SUB R7, R8
+        INC R5
+        CLR R6
+        RETI
+bit_Is_Two:
+        CMP R9, R7
+        JGE this_Is_TRcal
+this_Is_Data_Bit:
+        ADD R8, R7
+        ADDC.b @R4+,-1(R4)
+        INC R6
+        CMP #0008,R6
+        JGE out_p
+        DEC R4
+out_p:
+        BIC #0008h,R6
+        INC R5
+        RETI
+this_Is_TRcal:
+        MOV R7, R5
+        MOV.W   R5, &TRcal
+        MOV #0003h, R5
+        CLR R6
+        RETI
+bit_Is_Over_Three:
+        ADD R8, R7
+        ADDC.b @R4+,-1(R4)
+        INC R6
+        CMP #0008,R6
+        JGE out_p1
+        DEC R4
+out_p1:
+        BIC #0008h,R6
+        INC R5
+        RETI
+        RETI
+        CFI EndBlock cfiBlock3
+        REQUIRE TAR
+        REQUIRE TACCTL1
+        REQUIRE bits
+
         COMMON INTVEC:CONST:ROOT(1)
         ORG 36
 `??Port1_ISR??INTVEC 36`:
         DC16    Port1_ISR
 
+        COMMON INTVEC:CONST:ROOT(1)
+        ORG 48
+`??TimerA1_ISR??INTVEC 48`:
+        DC16    TimerA1_ISR
+
         END
 // 
-// 516 bytes in segment CODE
-//  17 bytes in segment DATA16_AN
-//   2 bytes in segment INTVEC
-//  78 bytes in segment ISR_CODE
+// 520 bytes in segment CODE
+//  19 bytes in segment DATA16_AN
+//   4 bytes in segment INTVEC
+// 184 bytes in segment ISR_CODE
 // 
-// 594 bytes of CODE  memory
-//   0 bytes of CONST memory (+  2 bytes shared)
-//   0 bytes of DATA  memory (+ 17 bytes shared)
+// 704 bytes of CODE  memory
+//   0 bytes of CONST memory (+  4 bytes shared)
+//   0 bytes of DATA  memory (+ 19 bytes shared)
 //
 //Errors: none
 //Warnings: none
