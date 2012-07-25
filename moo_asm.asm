@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //                                                                            /
-// IAR C/C++ Compiler V5.10.6.50180/W32 for MSP430      24/Jul/2012  13:12:50 /
+// IAR C/C++ Compiler V5.10.6.50180/W32 for MSP430      25/Jul/2012  12:51:44 /
 // Copyright 1996-2010 IAR Systems AB.                                        /
 //                                                                            /
 //    __rt_version  =  3                                                      /
@@ -11,15 +11,15 @@
 //    __core        =  430X                                                   /
 //    __data_model  =  small                                                  /
 //    Source file   =  C:\Documents and Settings\Addison                      /
-//                     Mayberry\Desktop\mooflashdev_asmtest\build_asm.c       /
+//                     Mayberry\Desktop\moofirmwaredev_asmtest\build_asm.c    /
 //    Command line  =  "C:\Documents and Settings\Addison                     /
-//                     Mayberry\Desktop\mooflashdev_asmtest\build_asm.c"      /
+//                     Mayberry\Desktop\moofirmwaredev_asmtest\build_asm.c"   /
 //                     -lcN "C:\Documents and Settings\Addison                /
-//                     Mayberry\Desktop\mooflashdev_asmtest\Debug\List\" -la  /
-//                     "C:\Documents and Settings\Addison                     /
-//                     Mayberry\Desktop\mooflashdev_asmtest\Debug\List\" -o   /
-//                     "C:\Documents and Settings\Addison                     /
-//                     Mayberry\Desktop\mooflashdev_asmtest\Debug\Obj\"       /
+//                     Mayberry\Desktop\moofirmwaredev_asmtest\Debug\List\"   /
+//                     -la "C:\Documents and Settings\Addison                 /
+//                     Mayberry\Desktop\moofirmwaredev_asmtest\Debug\List\"   /
+//                     -o "C:\Documents and Settings\Addison                  /
+//                     Mayberry\Desktop\moofirmwaredev_asmtest\Debug\Obj\"    /
 //                     --no_cse --no_unroll --no_inline --no_code_motion      /
 //                     --no_tbaa --debug -D__MSP430F2618__ -e --double=32     /
 //                     --dlib_config "C:\Program Files\IAR Systems\Embedded   /
@@ -27,13 +27,13 @@
 //                     --regvar_r5 --core=430X --data_model=small -Ol         /
 //                     --multiplier=16s                                       /
 //    List file     =  C:\Documents and Settings\Addison                      /
-//                     Mayberry\Desktop\mooflashdev_asmtest\Debug\List\build_ /
-//                     asm.s43                                                /
+//                     Mayberry\Desktop\moofirmwaredev_asmtest\Debug\List\bui /
+//                     ld_asm.s43                                             /
 //                                                                            /
 //                                                                            /
 ///////////////////////////////////////////////////////////////////////////////
 
-        NAME moo_asm
+        NAME build_asm
 
         RTMODEL "__SystemLibrary", "DLib"
         RTMODEL "__core", "430X"
@@ -46,14 +46,21 @@
 
         RSEG CSTACK:DATA:SORT:NOROOT(0)
 
+        PUBWEAK `??Port1_ISR??INTVEC 36`
         PUBWEAK BCSCTL1
         PUBWEAK BCSCTL2
         PUBWEAK DCOCTL
         PUBWEAK P1IE
         PUBWEAK P1IES
+        PUBWEAK P1IFG
         PUBWEAK P1SEL
+        PUBLIC Port1_ISR
+        FUNCTION Port1_ISR,080233H
+        ARGFRAME CSTACK, 0, STACK
+        LOCFRAME CSTACK, 4, STACK
         PUBWEAK TACCR0
         PUBWEAK TACCTL0
+        PUBWEAK TACCTL1
         PUBWEAK TACTL
         PUBWEAK TAR
         PUBLIC junk
@@ -132,6 +139,56 @@
         CFI R15 Undefined
         CFI EndCommon cfiCommon0
         
+        
+        CFI Common cfiCommon1 Using cfiNames0
+        CFI CodeAlign 2
+        CFI DataAlign 2
+        CFI ReturnAddress PC CODE
+        CFI CFA SP+4
+        CFI PC or(add(CFA, literal(-4)), lshift(add(CFA, literal(-2)), 4))
+        CFI SR Frame(CFA, -4)
+        CFI R4L SameValue
+        CFI R4H 0
+        CFI R4 Concat
+        CFI R5L SameValue
+        CFI R5H 0
+        CFI R5 Concat
+        CFI R6L SameValue
+        CFI R6H 0
+        CFI R6 Concat
+        CFI R7L SameValue
+        CFI R7H 0
+        CFI R7 Concat
+        CFI R8L SameValue
+        CFI R8H 0
+        CFI R8 Concat
+        CFI R9L SameValue
+        CFI R9H 0
+        CFI R9 Concat
+        CFI R10L SameValue
+        CFI R10H 0
+        CFI R10 Concat
+        CFI R11L SameValue
+        CFI R11H 0
+        CFI R11 Concat
+        CFI R12L SameValue
+        CFI R12H 0
+        CFI R12 Concat
+        CFI R13L SameValue
+        CFI R13H 0
+        CFI R13 Concat
+        CFI R14L SameValue
+        CFI R14H 0
+        CFI R14 Concat
+        CFI R15L SameValue
+        CFI R15H 0
+        CFI R15 Concat
+        CFI EndCommon cfiCommon1
+        
+Port1_ISR           SYMBOL "Port1_ISR"
+`??Port1_ISR??INTVEC 36` SYMBOL "??INTVEC 36", Port1_ISR
+
+        EXTERN delimiterNotFound
         EXTERN TRext
         EXTERN bits
         EXTERN dest
@@ -150,6 +207,11 @@ BCSCTL1:
         ASEGN DATA16_AN:DATA:NOROOT,058H
 // unsigned char volatile BCSCTL2
 BCSCTL2:
+        DS8 1
+
+        ASEGN DATA16_AN:DATA:NOROOT,023H
+// unsigned char volatile P1IFG
+P1IFG:
         DS8 1
 
         ASEGN DATA16_AN:DATA:NOROOT,024H
@@ -177,6 +239,11 @@ TACTL:
 TACCTL0:
         DS8 2
 
+        ASEGN DATA16_AN:DATA:NOROOT,0164H
+// unsigned short volatile TACCTL1
+TACCTL1:
+        DS8 2
+
         ASEGN DATA16_AN:DATA:NOROOT,0170H
 // unsigned short volatile TAR
 TAR:
@@ -193,10 +260,12 @@ junk:
         CFI Function junk
         MOV.B   &0x25, R14
         MOV.B   &0x24, R15
+        MOV.W   &0x164, R13
         RETA
         CFI EndBlock cfiBlock0
         REQUIRE P1IE
         REQUIRE P1IES
+        REQUIRE TACCTL1
 
         RSEG CODE:CODE:REORDER:NOROOT(1)
 sendToReader:
@@ -441,13 +510,55 @@ lastBit:
         REQUIRE BCSCTL2
         REQUIRE bits
 
+        RSEG ISR_CODE:CODE:REORDER:NOROOT(1)
+Port1_ISR:
+        CFI Block cfiBlock2 Using cfiCommon1
+        CFI Function Port1_ISR
+        MOV TAR, R7
+        MOV.B   #0x0, &0x23
+        MOV.W   #0x0, &0x170
+        BIC.W   #0xf0, 0(SP)
+        CMP #0000h, R5
+        JEQ bit_Is_Zero_In_Port_Int
+        MOV #0000h, R5
+        CMP #0010h, R7
+        JNC delimiter_Value_Is_wrong
+        CMP #0040h, R7
+        JC  delimiter_Value_Is_wrong
+        CLR P1IE
+        BIS #8010h, TACCTL1
+        MOV #0004h, P1SEL
+        RETI
+delimiter_Value_Is_wrong:
+        BIC #0004h, P1IES
+        MOV #0000h, R5
+        MOV.B   #0x1, &delimiterNotFound
+        RETI
+bit_Is_Zero_In_Port_Int:
+        MOV #0000h, TAR
+        BIS #0004h, P1IES
+        INC R5
+        RETI
+        RETI
+        CFI EndBlock cfiBlock2
+        REQUIRE P1IFG
+        REQUIRE TAR
+
+        COMMON INTVEC:CONST:ROOT(1)
+        ORG 36
+`??Port1_ISR??INTVEC 36`:
+        DC16    Port1_ISR
+
         END
 // 
-// 512 bytes in segment CODE
-//  14 bytes in segment DATA16_AN
+// 516 bytes in segment CODE
+//  17 bytes in segment DATA16_AN
+//   2 bytes in segment INTVEC
+//  78 bytes in segment ISR_CODE
 // 
-// 512 bytes of CODE memory
-//   0 bytes of DATA memory (+ 14 bytes shared)
+// 594 bytes of CODE  memory
+//   0 bytes of CONST memory (+  2 bytes shared)
+//   0 bytes of DATA  memory (+ 17 bytes shared)
 //
 //Errors: none
 //Warnings: none

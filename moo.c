@@ -807,7 +807,7 @@ __interrupt void TimerA0_ISR(void)   // (5-6 cycles) to enter interrupt
   TACCTL1 = 0;  // have to manually clear interrupt flag
   LPM4_EXIT;
 }
-
+/*
 //*************************************************************************
 //************************ PORT 1 INTERRUPT *******************************
 
@@ -866,7 +866,7 @@ __interrupt void Port1_ISR(void)   // (5-6 cycles) to enter interrupt
   asm("INC R5\n");            // 1 cycle
   asm("RETI\n");
 
-}
+}*/
 //*************************************************************************
 //************************ Timer INTERRUPT *******************************
 

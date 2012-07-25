@@ -582,7 +582,7 @@
         </option>
         <option>
           <name>OutputFile</name>
-          <state></state>
+          <state>$FILE_BNAME$.r43</state>
         </option>
         <option>
           <name>AMultibyteSupport</name>
@@ -959,7 +959,7 @@
         </option>
         <option>
           <name>OutputFile</name>
-          <state></state>
+          <state>$PROJ_FNAME$.ulp</state>
         </option>
         <option>
           <name>ULPStatus</name>
@@ -1949,6 +1949,9 @@
   </file>
   <file>
     <name>$PROJ_DIR$\moo.h</name>
+  </file>
+  <file>
+    <name>$PROJ_DIR$\moo_asm.asm</name>
   </file>
   <file>
     <name>$PROJ_DIR$\mymoo.h</name>
