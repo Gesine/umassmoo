@@ -1951,10 +1951,10 @@
     <name>$PROJ_DIR$\moo.h</name>
   </file>
   <file>
-    <name>$PROJ_DIR$\moo_asm.asm</name>
+    <name>$PROJ_DIR$\mymoo.h</name>
   </file>
   <file>
-    <name>$PROJ_DIR$\mymoo.h</name>
+    <name>$PROJ_DIR$\port1_isr.asm</name>
   </file>
   <file>
     <name>$PROJ_DIR$\quick_accel_sensor.c</name>
@@ -1969,10 +1969,16 @@
     <name>$PROJ_DIR$\rfid.h</name>
   </file>
   <file>
+    <name>$PROJ_DIR$\send_to_reader.asm</name>
+  </file>
+  <file>
     <name>$PROJ_DIR$\sessions.c</name>
   </file>
   <file>
     <name>$PROJ_DIR$\sessions.h</name>
+  </file>
+  <file>
+    <name>$PROJ_DIR$\timerA1_isr.asm</name>
   </file>
 </project>
 
