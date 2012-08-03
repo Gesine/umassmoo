@@ -33,6 +33,9 @@
 //                                                                            /
 ///////////////////////////////////////////////////////////////////////////////
 
+// Needed for definition of MILLER_4_ENCODING
+#include "mymoo.h"
+
         NAME send_to_reader
 
         RTMODEL "__SystemLibrary", "DLib"
@@ -197,7 +200,9 @@ sendToReader:
         MOV.W   #0x5, &0x172          //  this is 1 us period( 3 is 430x12x1)
         MOV.W   #0x0, &0x170
         MOV.W   #0x80, &0x162         //  RESET MODE
+#if MILLER_4_ENCODING
         BIS.B   #0x10, &0x58
+#endif
         
         /*******************************************************************************
         *   The starting of the transmitting code. Transmitting code must send 4 or 16
