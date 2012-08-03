@@ -171,6 +171,16 @@ TAR:
 TACCR0:
         DS8 2
 
+//
+//
+// experimental M4 code
+//
+//
+
+/******************************************************************************
+*   Pin Set up
+*   P1.1 - communication output
+*******************************************************************************/
         RSEG CODE:CODE:REORDER:NOROOT(1)
 sendToReader:
         CFI Block cfiBlock0 Using cfiCommon0
@@ -179,89 +189,127 @@ sendToReader:
         MOV.B   #0xc0, &0x56
         BIC.W   #0x2, &0x160
         MOV.W   #0x0, &0x170
-        MOV.W   R12, R4
-        BIS.B   #0x2, &0x26
-        BIS.W   #0x4, &0x160
-        MOV.W   #0x210, &0x160
-        MOV.W   #0x5, &0x172
+        MOV.W   R12, R4               // assign data address to dest
+        // Setup timer
+        BIS.B   #0x2, &0x26           //  select TIMER_A0
+        BIS.W   #0x4, &0x160          //  reset timer A
+        MOV.W   #0x210, &0x160        //  up mode
+        MOV.W   #0x5, &0x172          //  this is 1 us period( 3 is 430x12x1)
         MOV.W   #0x0, &0x170
-        MOV.W   #0x80, &0x162
+        MOV.W   #0x80, &0x162         //  RESET MODE
         BIS.B   #0x10, &0x58
-        MOV.B   &TRext, R15
-        MOV.B   R15, R15
-        MOV.W   R15, R5
-        NOP
-        CMP #0001h, R5
-        JEQ TRextIs_1
-        MOV #0004h, R9
-        JMP otherSetup
+        
+        /*******************************************************************************
+        *   The starting of the transmitting code. Transmitting code must send 4 or 16
+        *   of M/LF, then send 010111 preamble before sending data package. TRext
+        *   determines how many M/LFs are sent.
+        *
+        *   Used Register
+        *   R4 = CMD address, R5 = bits, R6 = counting 16 bits, R7 = 1 Word data, R9 =
+        *   temp value for loop R10 = temp value for the loop, R13 = 16 bits compare,
+        *   R14 = timer_value for 11, R15 = timer_value for 5
+        *******************************************************************************/
+        
+        //<-------- The below code will initiate some set up ---------------------->//
+        //MOV #05h, R14
+        //MOV #02h, R15
+        MOV.B   &TRext, R15       // }
+        MOV.B   R15, R15          // }  5 cycles
+        MOV.W   R15, R5           // }
+        NOP                       // 1 cycle
+        CMP #0001h, R5            // 1 cycle
+        JEQ TRextIs_1             // 2 cycles
+        MOV #0004h, R9            // 1 cycle
+        JMP otherSetup            // 2 cycles
+        // initialize loop for 16 M/LF
 TRextIs_1:
-        MOV #000fh, R9
+        MOV #000fh, R9          // 2 cycles *** this will change to right value
         NOP
 otherSetup:
-        MOV.B   R13, R13
-        MOV.W   R13, R5
-        NOP
-        MOV #0bh, R14
-        MOV #05h, R15
-        MOV @R4+, R7
-        MOV #0010h, R13
-        MOV R13, R6
-        SWPB R7
-        NOP
-        NOP
+        MOV.B   R13, R13          // } (2 cycles).  This value will be adjusted. if
+        MOV.W   R13, R5           // } numOfBit is constant, it takes 1 cycles
+        NOP                       // (1 cycles), zhangh 0316
+        MOV #0bh, R14             // (2 cycles) R14 is used as timer value 11, it will be 2 us in 3 MHz
+        MOV #05h, R15             // (2 cycles) R15 is used as timer value 5, it will be 1 us in 3 MHz
+        MOV @R4+, R7              // (2 cycles) Assign data to R7
+        MOV #0010h, R13           // (2 cycles) Assign decimal 16 to R13, so it will reduce the 1 cycle from below code
+        MOV R13, R6               // (1 cycle)
+        SWPB R7                   // (1 cycle)    Swap Hi-byte and Low byte
         NOP
         NOP
+        // new timing needs 11 cycles
         NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        MOV #0001h, R10
+        //NOP                     // up to here, it make 1 to 0 transition.
+        //<----------------2 us --------------------------------
+        NOP                       // 1
+        NOP                       // 2
+        NOP                       // 3
+        NOP                       // 4
+        NOP                       // 5
+        NOP                       // 6
+        //NOP                       // 7
+        //NOP                       // 8
+        //NOP                       // 9
+        // <---------- End of 1 us ------------------------------
+        // The below code will create the number of M/LF.  According to the spec,
+        // if the TRext is 0, there are 4 M/LF.  If the TRext is 1, there are 16
+        // M/LF
+        // The upper code executed 1 M/LF, so the count(R9) should be number of M/LF
+        // - 1
+        //MOV #000fh, R9              // 2 cycles  *** this will change to right value
+        MOV #0001h, R10               // 1 cycles, zhangh?
+        // The below code will create the number base encoding waveform., so the
+        // number of count(R9) should be times of M
+        // For example, if M = 2 and TRext are 1(16, the number of count should be
+        // 32.
 M_LF_Count:
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        CMP R10, R9
-        JEQ M_LF_Count_End
-        INC R10
-        NOP
-        JMP M_LF_Count
+        NOP                       // 1
+        NOP                       // 2
+        NOP                       // 3
+        NOP                       // 4
+        NOP                       // 5
+        NOP                       // 6
+        NOP                       // 7
+        NOP                       // 8
+        NOP                       // 9
+        NOP                       // 10
+        NOP                       // 11
+        NOP                       // 12
+        NOP                       // 13
+        NOP                       // 14
+        NOP                       // 15
+        NOP                       // 16
+        //NOP                       // 17
+        CMP R10, R9               // 1 cycle
+        JEQ M_LF_Count_End        // 2 cycles
+        INC R10                   // 1 cycle
+        NOP                       // 22
+        JMP M_LF_Count            // 2 cycles
+        // this code is preamble for 010111 , but for the loop, it will only send 01011
 M_LF_Count_End:
-        MOV #5c00h, R9
-        MOV #0006h, R10
-        NOP
+        MOV #5c00h, R9            // 2 cycles
+        MOV #0006h, R10           // 2 cycles
+        NOP                       // 1 cycle zhangh 0316, 2
+       // this should be counted as 0. Therefore, Assembly DEC line should be 1 after executing
 Preamble_Loop:
-        DEC R10
-        JZ last_preamble_set
-        RLC R9
-        JNC preamble_Zero
+        DEC R10                   // 1 cycle
+        JZ last_preamble_set      // 2 cycle
+        RLC R9                    // 1 cycle
+        JNC preamble_Zero         // 2 cycle      .. up to 6
         NOP
-        NOP
-        MOV R14, TACCR0
-        NOP
-        NOP
-        NOP
-        NOP
-        MOV R15, TACCR0
+        NOP                       // 1 cycle
+        MOV R14, TACCR0           // 3 cycle      .. 10
         NOP
         NOP
         NOP
+        NOP                       // 1 cycle
+        MOV R15, TACCR0           // 3 cycle      .. 18
         NOP
-        JMP Preamble_Loop
+        NOP
+        NOP
+        NOP                       // .. 22
+        JMP Preamble_Loop         // 2 cycles   .. 24
+        // this is 0 case for preamble
 preamble_Zero:
         NOP
         NOP
@@ -279,14 +327,14 @@ preamble_Zero:
         NOP
         NOP
         NOP
-        JMP Preamble_Loop
+        JMP Preamble_Loop         // 2 cycles .. 24
 last_preamble_set:
+        NOP                       // 4
         NOP
+        NOP                       // TURN ON
         NOP
-        NOP
-        NOP
-        NOP
-        MOV.B R14, TACCR0
+        NOP                       // 1 cycle
+        MOV.B R14, TACCR0         // 3 cycles
         NOP
         NOP
         NOP
@@ -297,107 +345,146 @@ last_preamble_set:
         NOP
         NOP
         NOP
+        // Here are another 4 cycles. But 3~5 cycles might also work, need to try.// Here are another 4 cycles. But 3~5 cycles might also work, need to try.
         NOP
         NOP
         NOP
         NOP
+        //NOP
+        
+        /***********************************************************************
+        *   The main loop code for transmitting data in 3 MHz.  This will transmit data
+        *   in real time.
+        *   R5(bits) and R6(word count) must be 1 bigger than desired value.
+        *   Ex) if you want to send 16 bits, you have to store 17 to R5.
+        ************************************************************************/
+
+        // this is starting of loop
 LOOPAGAIN:
-        DEC R5
-        JEQ Three_Cycle_Loop_End
-        RLC R7
-        JNC bit_is_zero
+        DEC R5                    // 1 cycle
+        JEQ Three_Cycle_Loop_End  // 2 cycle
+        //<--------------loop condition ------------
+        //NOP                       // 1 cycle
+        RLC R7                    // 1 cycle
+        JNC bit_is_zero           // 2 cycles  ..6
+        // bit is 1
 bit_is_one:
-        MOV R14, TACCR0
-        DEC R6
-        JNZ bit_Count_Is_Not_16
-        MOV R15, TACCR0
-        MOV R13, R6
-        MOV @R4+, R7
-        SWPB R7
+        //NOP                       // 1 cycle
+        MOV R14, TACCR0           // 3 cycles   ..9
+                                  // 4 cycles   ..11 (? - not sure what this is referring to - mayberry)
+        DEC R6                    // 1 cycle  ..10
+        JNZ bit_Count_Is_Not_16   // 2 cycle    .. 12
+        MOV R15, TACCR0           // 3 cycles   .. 15
+        MOV R13, R6               // 1 cycle   .. 16
+        MOV @R4+, R7              // 2 cycles  .. 18
+        SWPB R7                   // 1 cycle    .. 19
+        //MOV R13, R6               // 1 cycle
+        // End of assigning data byte
         NOP
         NOP
         NOP
-        JMP LOOPAGAIN
+        JMP LOOPAGAIN             // 2 cycle    .. 24
 seq_zero:
-        MOV R15, TACCR0
+        MOV R15, TACCR0           // 3 cycles       ..3
         NOP
         NOP
-        NOP
-bit_is_zero:
-        DEC R6
-        JNE bit_Count_Is_Not_16_From0
-        DEC R5
-        JEQ Thirteen_Cycle_Loop_End
-        MOV @R4+,R7
-        SWPB R7
-        MOV R13, R6
-        RLC R7
-        JC nextBitIs1
-        MOV R14, TACCR0
-        JMP seq_zero
-bit_Count_Is_Not_16_From0:
-        DEC R5
-        JEQ Thirteen_Cycle_Loop_End
-        NOP
-        NOP
-        NOP
-        RLC R7
-        JC nextBitIs1
-        MOV R14, TACCR0
-        NOP
-        JMP seq_zero
-nextBitIs1:
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        JMP bit_is_one
-bit_Count_Is_Not_16:
-        MOV R15, TACCR0
-        NOP
-        NOP
+        NOP                       // 1 cycles .. 6
+        
+        // bit is 0, so it will check that next bit is 0 or not
+bit_is_zero:                      // up to 6 cycles
+        DEC R6                    // 1 cycle   .. 7
+        JNE bit_Count_Is_Not_16_From0   // 2 cycles  .. 9
+        // bit count is 16
+        DEC R5                    // 1 cycle   .. 10
+        JEQ Thirteen_Cycle_Loop_End   // 2 cycle   .. 12
+        // This code will assign new data from reply and then swap bytes.  After
+        // that, update R6 with 16 bits
+        MOV @R4+,R7               // 2 cycles     14
+        SWPB R7                   // 1 cycle      15
+        MOV R13, R6               // 1 cycles     16
+        // End of assigning new data byte
+        RLC R7                    // 1 cycles     17
+        JC nextBitIs1             // 2 cycles  .. 19
+        // bit is 0
+        MOV R14, TACCR0           // 3 cycles  .. 22
+        // Next bit is 0 , it is 00 case
+        JMP seq_zero              // 2 cycles .. 24
+        
+        // <---------this code is 00 case with no 16 bits.
+bit_Count_Is_Not_16_From0:        // up to 9 cycles
+        DEC R5                    // 1 cycle      10
+        JEQ Thirteen_Cycle_Loop_End   // 2 cycle    ..12
+        NOP                       // 1 cycles    ..13
+        NOP                       // 1 cycles    ..14
+        NOP                       // 1 cycles    ..15
+        RLC R7                    // 1 cycle     .. 16
+        JC nextBitIs1             // 2 cycles    ..18
+        MOV R14, TACCR0           // 3 cycles   .. 21
+        NOP                       // 1 cycle   .. 22
+        JMP seq_zero              // 2 cycles    .. 24
+        
+        // whenever current bit is 0, then next bit is 1
+nextBitIs1:                       // 18
         NOP
         NOP
         NOP
         NOP
         NOP
-        JMP LOOPAGAIN
+        NOP
+        NOP                       // 24
+        NOP
+        NOP
+        NOP
+        JMP bit_is_one            // end of bit 0 .. 6
+bit_Count_Is_Not_16:              // up to here 14
+        MOV R15, TACCR0           // 3 cycles   .. 15
+        NOP                       // 1 cycle .. 16
+        NOP                       // 1 cycle .. 17
+        NOP                       // 1 cycle .. 18
+        NOP                       // 1 cycle .. 19
+        NOP                       // 1 cycle .. 20
+        NOP                       // 1 cycle .. 21
+        NOP                       // 1 cycle .. 22
+        JMP LOOPAGAIN             // 2 cycle          .. 24
+        
+        // below code is the end of loop code
 Three_Cycle_Loop_End:
-        JMP lastBit
-Thirteen_Cycle_Loop_End:
+        JMP lastBit               // 2 cycles   .. 5
+        
+Thirteen_Cycle_Loop_End:          // up to 12
+        NOP                       // 1
+        NOP                       // 2
+        NOP                       // 3
+        NOP                       // 4
+        NOP                       // 5
+        NOP                       // 6
+        NOP                       // 7
+        NOP                       // 8
+        NOP                       // 9
+        NOP                       // 10
+        NOP                       // 11
+        NOP                       // 12 ..24
+        NOP                       // 13
+        NOP                       // 14
+        JMP lastBit               // 16
+        /***********************************************************************
+        *   End of main loop
+        ************************************************************************/
+        
+        // this is last data 1 bit which is dummy data
+lastBit:                          // up to 4
+        NOP                       // 5
         NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        JMP lastBit
-lastBit:
-        NOP
-        NOP
-        MOV.B R14, TACCR0
+        MOV.B R14, TACCR0         // 3 cycles
         NOP
         NOP
         NOP
         MOV.B R15, TACCR0
         NOP
         NOP
+        // experiment
         NOP
-        MOV.W   #0x0, &0x162
+        MOV.W   #0x0, &0x162      // DON'T NEED THIS NOP
         MOV.B   #0x8b, &0x57
         MOV.B   #0x0, &0x56
         MOV.B   #0x0, &0x58

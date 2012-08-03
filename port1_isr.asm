@@ -211,6 +211,7 @@ TACCTL1:
 TAR:
         DS8 2
 
+// This is needed to make the inline assembly compile properly w/ these symbols
         RSEG CODE:CODE:REORDER:NOROOT(1)
 port1_isr_decls:
         CFI Block cfiBlock0 Using cfiCommon0
@@ -226,35 +227,45 @@ port1_isr_decls:
         REQUIRE P1SEL
         REQUIRE P1IES
 
+//*************************************************************************
+//************************ PORT 1 INTERRUPT *******************************
+
+// warning   :  Whenever the clock frequency changes, the value of TAR should be
+//              changed in aesterick lines
+// Pin Setup :  P1.2
+// Description : Port 1 interrupt is used as finding delimeter.
+
         RSEG ISR_CODE:CODE:REORDER:NOROOT(1)
 Port1_ISR:
         CFI Block cfiBlock1 Using cfiCommon1
-        CFI Function Port1_ISR
-        MOV TAR, R7
-        MOV.B   #0x0, &0x23
-        MOV.W   #0x0, &0x170
+        CFI Function Port1_ISR        // (5-6 cycles) to enter interrupt
+        MOV TAR, R7                   // move TAR to R7(count) register (3 CYCLES)
+        MOV.B   #0x0, &0x23           // 4 cycles
+        MOV.W   #0x0, &0x170          // 4 cycles
         BIC.W   #0xf0, 0(SP)
-        CMP #0000h, R5
-        JEQ bit_Is_Zero_In_Port_Int
-        MOV #0000h, R5
-        CMP #0010h, R7
-        JNC delimiter_Value_Is_wrong
-        CMP #0040h, R7
+        CMP #0000h, R5                // if (bits == 0) (1 cycle)
+        JEQ bit_Is_Zero_In_Port_Int   // 2 cycles
+        // bits != 0:
+        MOV #0000h, R5                // bits = 0  (1 cycles)
+        CMP #0010h, R7                // finding delimeter (12.5us, 2 cycles)
+                                      // 2d -> 14
+        JNC delimiter_Value_Is_wrong  //(2 cycles)
+        CMP #0040h, R7                // finding delimeter (12.5us, 2 cycles)
+                                      // 43H
         JC  delimiter_Value_Is_wrong
         CLR P1IE
-        BIS #8010h, TACCTL1
-        MOV #0004h, P1SEL
+        BIS #8010h, TACCTL1           // (5 cycles)   TACCTL1 |= CM1 + CCIE
+        MOV #0004h, P1SEL             // enable TimerA1    (4 cycles)
         RETI
 delimiter_Value_Is_wrong:
         BIC #0004h, P1IES
-        MOV #0000h, R5
+        MOV #0000h, R5                // bits = 0  (1 cycles)
         MOV.B   #0x1, &delimiterNotFound
         RETI
-bit_Is_Zero_In_Port_Int:
-        MOV #0000h, TAR
-        BIS #0004h, P1IES
-        INC R5
-        RETI
+bit_Is_Zero_In_Port_Int:              // bits == 0
+        MOV #0000h, TAR               // reset timer (4 cycles)
+        BIS #0004h, P1IES         // 4 cycles change port interrupt edge to neg
+        INC R5                        // 1 cycle
         RETI
         CFI EndBlock cfiBlock1
         REQUIRE P1IFG

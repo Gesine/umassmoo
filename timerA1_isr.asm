@@ -194,6 +194,7 @@ TAR:
 TACCR1:
         DS8 2
 
+// This is needed to make the inline assembly compile properly w/ this symbol
         RSEG CODE:CODE:REORDER:NOROOT(1)
 timera1_isr_decls:
         CFI Block cfiBlock0 Using cfiCommon0
@@ -203,63 +204,88 @@ timera1_isr_decls:
         CFI EndBlock cfiBlock0
         REQUIRE TACCR1
 
+//*************************************************************************
+//************************ Timer INTERRUPT *******************************
+
+// Pin Setup :  P1.2
+// Description :
         RSEG ISR_CODE:CODE:REORDER:NOROOT(1)
 TimerA1_ISR:
         CFI Block cfiBlock1 Using cfiCommon1
-        CFI Function TimerA1_ISR
-        MOV TACCR1, R7
-        MOV.W   #0x0, &0x170
-        BIC.W   #0x1, &0x164
-        CMP #0003h, R5
+        CFI Function TimerA1_ISR  // (6 cycles) to enter interrupt
+        MOV TACCR1, R7            // move TACCR1 to R7(count) register (3 CYCLES)
+        MOV.W   #0x0, &0x170      // reset timer (4 cycles)
+        BIC.W   #0x1, &0x164      // must manually clear interrupt flag (4 cycles)
+        
+        //<------up to here 26 cycles + 6 cyles of Interrupt == 32 cycles -------->
+        CMP #0003h, R5            // if (bits >= 3).  it will do store bits
         JGE bit_Is_Over_Three
-        CMP #0002h, R5
-        JEQ bit_Is_Two
-        CMP #0001h, R5
-        JEQ bit_Is_One
+        // bit is not 3
+        CMP #0002h, R5            // if ( bits == 2)
+        JEQ bit_Is_Two            // if (bits == 2).
+        
+        // <----------------- bit is not 2 ------------------------------->
+        CMP #0001h, R5            // if (bits == 1) -- measure RTcal value.
+        JEQ bit_Is_One            // bits == 1
+        
+        // <-------------------- this is bit == 0 case --------------------->
 bit_Is_Zero_In_Timer_Int:
         CLR R6
-        INC R5
+        INC R5                    // bits++
         RETI
-bit_Is_One:
-        MOV R7, R9
-        RRA R7
-        MOV #0FFFFh, R8
-        SUB R7, R8
-        INC R5
+        // <------------------- end of bit 0  --------------------------->
+        
+        // <-------------------- this is bit == 1 case --------------------->
+bit_Is_One:                       // bits == 1.  calculate RTcal value
+        MOV R7, R9                // 1 cycle
+        RRA R7                    // R7(count) is divided by 2.   1 cycle
+        MOV #0FFFFh, R8           // R8(pivot) is set to max value    1 cycle
+        SUB R7, R8                // R8(pivot) = R8(pivot) -R7(count/2) make new R8(pivot) value     1 cycle
+        INC R5                    // bits++
         CLR R6
         RETI
+        // <------------------ end of bit 1 ------------------------------>
+        
+        // <-------------------- this is bit == 2 case --------------------->
 bit_Is_Two:
-        CMP R9, R7
+        CMP R9, R7                // if (count > (R9)(180)) this is hardcoded number, so have  to change to proper value
         JGE this_Is_TRcal
+        // this is data
 this_Is_Data_Bit:
-        ADD R8, R7
-        ADDC.b @R4+,-1(R4)
+        ADD R8, R7                // count = count + pivot
+        ADDC.b @R4+,-1(R4)        // roll left (emulated by adding to itself == multiply by 2 + carry)
         INC R6
-        CMP #0008,R6
+        CMP #0008,R6              // undo increment of dest* (R4) until we have 8 bits
         JGE out_p
         DEC R4
-out_p:
-        BIC #0008h,R6
+out_p:                            // decrement R4 if we haven't gotten 16 bits yet (3 or 4 cycles)
+        BIC #0008h,R6             // when R6=8, this will set R6=0   (1 cycle)
         INC R5
         RETI
+        // <------------------ end of bit 2 ------------------------------>
+        
 this_Is_TRcal:
-        MOV R7, R5
-        MOV.W   R5, &TRcal
-        MOV #0003h, R5
-        CLR R6
+        MOV R7, R5                // bits = count. use bits(R5) to assign new value ofvTRcal
+        MOV.W   R5, &TRcal        // assign new value     (4 cycles)
+        MOV #0003h, R5            // bits = 3..assign 3 to bits, so it will keep track of current bits    (2 cycles)
+        CLR R6                    // (1 cycle)
         RETI
-bit_Is_Over_Three:
-        ADD R8, R7
-        ADDC.b @R4+,-1(R4)
+        
+        // <------------- this is bits >= 3 case ----------------------->
+bit_Is_Over_Three:                // bits >= 3 , so store bits
+        ADD R8, R7                // R7(count) = R8(pivot) + R7(count),
+                                  // store bit by shifting carry flag into cmd[bits]=(dest*) and increment
+                                  // dest* (5 cycles)
+        ADDC.b @R4+,-1(R4)        // roll left (emulated by adding to itself == multiply by 2 + carry)
         INC R6
-        CMP #0008,R6
+        CMP #0008,R6              // undo increment of dest* (R4) until we have 8 bits
         JGE out_p1
         DEC R4
-out_p1:
-        BIC #0008h,R6
-        INC R5
+out_p1:                           // decrement R4 if we haven't gotten 16 bits yet (3 or 4 cycles)
+        BIC #0008h,R6             // when R6=8, this will set R6=0   (1 cycle)
+        INC R5                    // bits++
         RETI
-        RETI
+        // <------------------ end of bit is over 3 ------------------------------>
         CFI EndBlock cfiBlock1
         REQUIRE TAR
         REQUIRE TACCTL1
